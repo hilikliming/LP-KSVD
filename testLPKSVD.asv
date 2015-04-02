@@ -67,8 +67,6 @@ save('D_LP.mat','D_LP');
 testList = {'alcyl_2ft_1530','alcyl_3ft','alpipe','aluxo','bullet_105mm_air',...
     'bullet_105mm_h2o', 'howitzer_cap_air','howitzer_cap_h2o','howitzer_nocap','ssuxo'};
 i = 1;
-Y = [];
-t_Y =[];
 % Extracting and preprocessing training templates
 for tag = testList
 cd(['C:\Users\halljj2\Desktop\WMSC-CODE\DBPond4.8','\ENV_1\',char(tag),'\15_m\90_deg']);
@@ -79,19 +77,15 @@ AC = ob.acp';
 cd(home);
 Ytest(i).Obs = formatAC(AC,301); % This script outputs target strength
 Ytest(i).Obs = Ytest(i).Obs + 1/10*randn(size(Ytest(i).Obs)); % This script outputs target strength
-Y = [Y, Ytest(i).Obs];
-t_Y = [t_Y',i*ones(1,size(Ytest(i).Obs,2))]';
+Y = [Y, Ytest(i).Obs]
 i = i +1;
 end
-
 cd(home);
 
 %% Running the WMSC with Various Dictionaries
 est = 'MSD';
 sigA= 1;
-d_YSVD = WMSC(Y,D_SVD,mu_m,est,sigA);
-d_YKSVD = WMSC(Y,D_KSVD,mu_m,est,sigA);
-d_YLP = WMSC(Y,D_LP,mu_m,est,sigA);
+d_Y = WMSC(Y,D_s,mu_m,est,sigA);
 
 %% Displaying Results comparison
 
