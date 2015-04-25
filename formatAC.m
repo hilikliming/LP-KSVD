@@ -4,10 +4,11 @@ function [ TS ] = formatAC( AC, N_s )
 %  N_s - Desired frequency bin number per aspect observation
 %% Output:
 %  TS - Target Strength AC with N_s frequency bins
-AC = 20*log10(AC);
+%%%%%% AC = 20*log10(AC); no.
 TS = zeros(N_s,size(AC,2));
 for k = 1:size(AC,2)
 TS(:,k) = resample(AC(:,k),N_s,size(AC,1));
+TS(:,k) = 20*log10(abs(TS(:,k))/norm(TS(:,k)));
 end
 
 end

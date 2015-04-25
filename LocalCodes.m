@@ -1,6 +1,7 @@
+%% Used in Conjunction with LPKSVD.m
+% John J. Hall, April 2015
 function [ X ] = LocalCodes(D, Y, tau,eta)
-%UNTITLED Summary of this function goes here
-%   Detailed explanation goes here
+
 X = zeros(size(D,2),size(Y,2));
 for j = 1:size(Y,2)
     [ws, omegaTau] = getNeighbors(Y(:,j),D,tau);

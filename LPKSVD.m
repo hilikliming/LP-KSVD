@@ -67,90 +67,37 @@ function [Dictionary, output] = LPKSVD(Data, param, coding)
 %                                param.displayProgress=1 and
 %                                coding.errorFlag = 1)
 % =========================================================================
-
-%****************************
-%% Populate Necessary Fields*
-%****************************
-
-if (~isfield(param,'displayProgress'))
-    param.displayProgress = 0;
-end
-
-if (isfield(coding,'errorFlag')==0)
-    coding.errorFlag = 0;
-end
-
-if (isfield(param,'TrueDictionary'))
-    displayErrorWithTrueDictionary = 1;
-    ErrorBetweenDictionaries = zeros(param.numIteration+1,1);
-    ratio = zeros(param.numIteration+1,1);
-else
-    displayErrorWithTrueDictionary = 0;
-	ratio = 0;
-end
-
-if (param.preserveDCAtom>0)
-    FixedDictionaryElement(1:size(Data,1),1) = 1/sqrt(size(Data,1));
-else
-    FixedDictionaryElement = [];
-end
-
-if param.displayProgress
-    if ~coding.errorFlag
-        output.totalerr = zeros(param.numIteration, 1);
-    else
-        output.numCoef = zeros(param.numIteration, 1);
-    end
-end
-
-
-%*******************
-%% Define Dictionary *
-%********************
-
-if (size(Data,2) < param.K)
-    disp('Size of data is smaller than the dictionary size. Trivial solution...');
-    Dictionary = Data(:, 1:size(Data,2));
-    return;
-elseif (strcmp(param.InitializationMethod,'DataElements'))
-    Dictionary = Data(:, randsample(size(Data, 2), param.K-param.preserveDCAtom));
-elseif (strcmp(param.InitializationMethod,'GivenMatrix'))
-    Dictionary = param.initialDictionary(:, 1:param.K-param.preserveDCAtom);
-end
-
-% *** reduce the components in Dictionary that are spanned by the fixed elements ***
-if param.preserveDCAtom
-    tmpMat = FixedDictionaryElement \ Dictionary;
-    Dictionary = Dictionary - FixedDictionaryElement*tmpMat;
-end
-
+Dictionary = param.Dict;
 % *** normalize the dictionary ***
 Dictionary = Dictionary * diag(1./sqrt(sum(Dictionary.*Dictionary)));
 Dictionary = Dictionary .* repmat(sign(Dictionary(1,:)),size(Dictionary,1),1); % multiply in the sign of the first element.
 
 
-%************************
+%****************************
 %% Begin LP K-SVD algorithm *
-%************************
+%****************************
 
 for iterNum = 1:param.numIteration
     
     % *** find the coefficients using local reconstruction code method ***
 %     if strcmp(coding.method, 'MP')
 %         if ~coding.errorFlag
-    CoefMatrix = LocalCodes([FixedDictionaryElement,Dictionary],Data, coding.tau, coding.eta);
+    CoefMatrix = LocalCodes(Dictionary,Data, coding.tau, coding.eta);
     LRE = zeros(size(Dictionary,2),1); 
     s = 0;
+    % Relearning d_k's
     for k = 1:size(Dictionary,2)
         xk = CoefMatrix(:,k);
         wk = find(xk~=0)';
         Lambda_k = Data(:,wk);
         Ek = abs(Lambda_k-Dictionary*CoefMatrix(:,wk));
         [U,~,~] = svd(Ek,'econ');
+        
         for j = 1:length(wk)
         LRE(k) = LRE(k) + norm(Lambda_k(:,j)-Dictionary(:,wk)*xk(wk));
         s = s+ 1/length(wk)*U(:,1)'/norm(U(:,1))*Data(:,wk(j));
         end
+        
         dknew = s*U(:,1);
         Dictionary(:,k) = dknew;  
     end
@@ -158,15 +105,6 @@ for iterNum = 1:param.numIteration
         ' Average LRE: ', num2str(mean(LRE))]);
 end % end LP-KSVD loop
 
-% % *** remove atoms that are not as useful ***
-% for jj = size(Dictionary,2):-1:1 % run through all atoms (backwards since we may remove some)
-%     G = Dictionary'*Dictionary; G = G-diag(diag(G));
-%     if (max(G(jj,:)) > param.maxIP) ||...
-%             ( (length(find(abs(CoefMatrix(jj,:)) > param.coeffCutoff)) / size(CoefMatrix,2)) <= param.minFracObs )
-%         Dictionary(:,jj) = [];
-%     end
-% end
-
 output.CoefMatrix = CoefMatrix;
-Dictionary = [FixedDictionaryElement, Dictionary];
+%Dictionary = [FixedDictionaryElement, Dictionary];
 end
