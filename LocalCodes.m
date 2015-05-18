@@ -21,13 +21,15 @@ dist= zeros(size(D,2),1);
 for j = 1:size(D,2)
     dist(j) =  norm(D(:,j)-yj);
 end
-Dl = D;
+%Dl = D;
 ws = zeros(tau,1);
 %Taking minimum distance dictionary elements
 for i = 1:tau
-    [del, ws(i)] = min(dist);
+    [~, ws(i)] = min(dist);
     %Dl = Dl(:,find(dist~=del));
-    dist(dist==del) = inf;  
+    %dist(dist==del) = inf; 
+    %mod
+    dist(ws(i)) = inf;
 end
 
 omegaTau = D(:,ws);

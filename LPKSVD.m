@@ -68,9 +68,9 @@ function [Dictionary, output] = LPKSVD(Data, param, coding)
 %                                coding.errorFlag = 1)
 % =========================================================================
 Dictionary = param.Dict;
-% *** normalize the dictionary ***
-Dictionary = Dictionary * diag(1./sqrt(sum(Dictionary.*Dictionary)));
-Dictionary = Dictionary .* repmat(sign(Dictionary(1,:)),size(Dictionary,1),1); % multiply in the sign of the first element.
+% % *** normalize the dictionary ***
+% Dictionary = Dictionary * diag(1./sqrt(sum(Dictionary.*Dictionary)));
+% Dictionary = Dictionary .* repmat(sign(Dictionary(1,:)),size(Dictionary,1),1); % multiply in the sign of the first element.
 
 
 %****************************
@@ -78,28 +78,36 @@ Dictionary = Dictionary .* repmat(sign(Dictionary(1,:)),size(Dictionary,1),1); %
 %****************************
 
 for iterNum = 1:param.numIteration
-    
     % *** find the coefficients using local reconstruction code method ***
-%     if strcmp(coding.method, 'MP')
-%         if ~coding.errorFlag
     CoefMatrix = LocalCodes(Dictionary,Data, coding.tau, coding.eta);
     LRE = zeros(size(Dictionary,2),1); 
-    s = 0;
     % Relearning d_k's
-    for k = 1:size(Dictionary,2)
-        xk = CoefMatrix(:,k);
-        wk = find(xk~=0)';
-        Lambda_k = Data(:,wk);
-        Ek = abs(Lambda_k-Dictionary*CoefMatrix(:,wk));
-        [U,~,~] = svd(Ek,'econ');
-        
-        for j = 1:length(wk)
-        LRE(k) = LRE(k) + norm(Lambda_k(:,j)-Dictionary(:,wk)*xk(wk));
-        s = s+ 1/length(wk)*U(:,1)'/norm(U(:,1))*Data(:,wk(j));
+    for k = 1:size(Dictionary,2)    
+        xk = CoefMatrix(k,:); 
+        wk = find(xk~=0)'; % find indices where xk is not zero (i.e. d_k selected);
+        if(size(wk,1)>0) % don't change the d_k if no y's use it, might be used later...
+            mod_dic = Dictionary;
+            mod_dic(:,k) = []; %removing kth atom
+            mod_coeffs = CoefMatrix;
+            mod_coeffs(k,:) = [];
+            E = Data - mod_dic*mod_coeffs;
+            E_k = E(:,wk);      
+            Lambda_k = Data(:,wk);
+            %Ek = abs(Lambda_k-Dictionary*CoefMatrix(:,wk));
+            [U,~,~] = svd(E_k,'econ');
+            s = 0;
+            for j = 1:length(wk)
+            %LRE(k) = LRE(k) + norm(Lambda_k(:,j)-Dictionary(:,wk)*xk(wk));
+                s = s+ 1/length(wk)*U(:,1)'/norm(U(:,1))*Data(:,wk(j));
+                LRE(k) = LRE(k) + norm(Dictionary(:,k) - Lambda_k(:,j))^2;
+            end
+                dknew = s*U(:,1);
+                Dictionary(:,k) = dknew; 
+        else
+                disp('atom swap');
+                dknew=swapNeighbors(Data,Dictionary,k);
+                Dictionary(:,k) = dknew;
         end
-        
-        dknew = s*U(:,1);
-        Dictionary(:,k) = dknew;  
     end
     disp(['Iteration: ', num2str(iterNum),' Avg. Number Coeff: ', num2str(mean(sum(CoefMatrix~=0,1))), ...
         ' Average LRE: ', num2str(mean(LRE))]);
@@ -107,4 +115,14 @@ end % end LP-KSVD loop
 
 output.CoefMatrix = CoefMatrix;
 %Dictionary = [FixedDictionaryElement, Dictionary];
+end
+
+function [dnew]= swapNeighbors(Data,Dictionary,k)
+dk = Dictionary(:,k);
+dists = zeros(size(Data,2),1);
+for i = 1:length(dists)
+    dists(i)=norm(dk-Data(:,i));
+end
+[~,cn] = min(dists);
+dnew = Data(:,cn);
 end
